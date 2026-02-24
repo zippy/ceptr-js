@@ -601,3 +601,142 @@ export function parseSemtrex(sem: SemTable, input: string): SemNode {
   const parser = new Parser(tokens, sem);
   return parser.parse();
 }
+
+// ---- Semtrex dump (tree → string) ----
+
+import { childAt } from './tree.js';
+
+/**
+ * Convert a semtrex tree back to its string representation.
+ * Inverse of parseSemtrex.
+ */
+export function dumpSemtrex(node: SemNode, sem: SemTable): string {
+  return '/' + dumpSTNode(node, sem);
+}
+
+function dumpSTNode(node: SemNode, sem: SemTable): string {
+  const s = node.symbol;
+
+  // SEMTREX_SYMBOL_LITERAL / SEMTREX_SYMBOL_LITERAL_NOT
+  if (semeq(s, SYMBOLS.SEMTREX_SYMBOL_LITERAL) || semeq(s, SYMBOLS.SEMTREX_SYMBOL_LITERAL_NOT)) {
+    const isNot = semeq(s, SYMBOLS.SEMTREX_SYMBOL_LITERAL_NOT);
+    const firstChild = childAt(node, 1)!;
+
+    let symbolStr: string;
+    if (semeq(firstChild.symbol, SYMBOLS.SEMTREX_SYMBOL_SET)) {
+      // Symbol set: {A,B,C}
+      const names: string[] = [];
+      for (const c of firstChild.children) {
+        if (semeq(c.symbol, SYMBOLS.SEMTREX_SYMBOL)) {
+          names.push(sem.getSymbolLabel(c.surface as SemanticID) ?? '?');
+        }
+      }
+      symbolStr = (isNot ? '!' : '') + '{' + names.join(',') + '}';
+    } else if (semeq(firstChild.symbol, SYMBOLS.SEMTREX_SYMBOL)) {
+      // Single symbol
+      const name = sem.getSymbolLabel(firstChild.surface as SemanticID) ?? '?';
+      symbolStr = (isNot ? '!' : '') + name;
+    } else {
+      symbolStr = '?';
+    }
+
+    // Check for child pattern (descend)
+    const secondChild = childAt(node, 2);
+    if (secondChild) {
+      return symbolStr + '/' + dumpSTSiblings(secondChild, sem);
+    }
+    return symbolStr;
+  }
+
+  // SEMTREX_VALUE_LITERAL / SEMTREX_VALUE_LITERAL_NOT
+  if (semeq(s, SYMBOLS.SEMTREX_VALUE_LITERAL) || semeq(s, SYMBOLS.SEMTREX_VALUE_LITERAL_NOT)) {
+    const isNot = semeq(s, SYMBOLS.SEMTREX_VALUE_LITERAL_NOT);
+    const firstChild = childAt(node, 1)!;
+
+    if (semeq(firstChild.symbol, SYMBOLS.SEMTREX_VALUE_SET)) {
+      // Value set: SYMBOL={v1,v2}
+      const vals: string[] = [];
+      let symName = '?';
+      for (const c of firstChild.children) {
+        symName = sem.getSymbolLabel(c.symbol) ?? '?';
+        vals.push(dumpValue(c.surface));
+      }
+      return symName + (isNot ? '!=' : '=') + '{' + vals.join(',') + '}';
+    }
+
+    // Single value
+    const symName = sem.getSymbolLabel(firstChild.symbol) ?? '?';
+    return symName + (isNot ? '!=' : '=') + dumpValue(firstChild.surface);
+  }
+
+  // SEMTREX_SYMBOL_ANY
+  if (semeq(s, SYMBOLS.SEMTREX_SYMBOL_ANY)) {
+    return '.';
+  }
+
+  // SEMTREX_SEQUENCE
+  if (semeq(s, SYMBOLS.SEMTREX_SEQUENCE)) {
+    return '(' + node.children.map(c => dumpSTNode(c, sem)).join(',') + ')';
+  }
+
+  // SEMTREX_OR
+  if (semeq(s, SYMBOLS.SEMTREX_OR)) {
+    return dumpSTNode(childAt(node, 1)!, sem) + '|' + dumpSTNode(childAt(node, 2)!, sem);
+  }
+
+  // Quantifiers
+  if (semeq(s, SYMBOLS.SEMTREX_ZERO_OR_MORE)) {
+    return dumpQuantified(node, sem, '*');
+  }
+  if (semeq(s, SYMBOLS.SEMTREX_ONE_OR_MORE)) {
+    return dumpQuantified(node, sem, '+');
+  }
+  if (semeq(s, SYMBOLS.SEMTREX_ZERO_OR_ONE)) {
+    return dumpQuantified(node, sem, '?');
+  }
+
+  // SEMTREX_GROUP
+  if (semeq(s, SYMBOLS.SEMTREX_GROUP)) {
+    const groupSym = node.surface as SemanticID;
+    const groupName = sem.getSymbolLabel(groupSym) ?? '?';
+    const body = childAt(node, 1)!;
+    return '<' + groupName + ':' + dumpSTNode(body, sem) + '>';
+  }
+
+  // SEMTREX_DESCEND
+  if (semeq(s, SYMBOLS.SEMTREX_DESCEND)) {
+    return '/' + dumpSTNode(childAt(node, 1)!, sem);
+  }
+
+  // SEMTREX_WALK
+  if (semeq(s, SYMBOLS.SEMTREX_WALK)) {
+    return '%' + dumpSTNode(childAt(node, 1)!, sem);
+  }
+
+  // SEMTREX_NOT
+  if (semeq(s, SYMBOLS.SEMTREX_NOT)) {
+    return '~' + dumpSTNode(childAt(node, 1)!, sem);
+  }
+
+  return '?';
+}
+
+function dumpSTSiblings(node: SemNode, sem: SemTable): string {
+  return dumpSTNode(node, sem);
+}
+
+function dumpQuantified(node: SemNode, sem: SemTable, op: string): string {
+  const inner = childAt(node, 1)!;
+  const innerStr = dumpSTNode(inner, sem);
+  // Wrap complex expressions in parens before quantifier
+  if (semeq(inner.symbol, SYMBOLS.SEMTREX_SEQUENCE) || semeq(inner.symbol, SYMBOLS.SEMTREX_OR)) {
+    return '(' + innerStr + ')' + op;
+  }
+  return innerStr + op;
+}
+
+function dumpValue(s: unknown): string {
+  if (typeof s === 'string') return '"' + s + '"';
+  if (typeof s === 'number') return String(s);
+  return String(s);
+}

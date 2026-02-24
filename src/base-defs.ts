@@ -64,6 +64,11 @@ export const SYMBOLS = {
   SEMTREX_MATCH_SYMBOL:       sysSymbol(41),
   SEMTREX_MATCH_PATH:         sysSymbol(42),
   SEMTREX_MATCH_SIBLINGS_COUNT: sysSymbol(43),
+  // Semantic map symbols (for template filling from match results)
+  SEMANTIC_MAP:               sysSymbol(50),
+  SEMANTIC_LINK:              sysSymbol(51),
+  USAGE:                      sysSymbol(52),
+  REPLACEMENT_VALUE:          sysSymbol(53),
 } as const;
 
 /**
@@ -125,6 +130,11 @@ export function registerBaseDefs(sem: SemTable): SemTable {
     [SYMBOLS.SEMTREX_MATCH_SYMBOL,       'SEMTREX_MATCH_SYMBOL',       STRUCTURES.SYMBOL],
     [SYMBOLS.SEMTREX_MATCH_PATH,         'SEMTREX_MATCH_PATH',         STRUCTURES.TREE_PATH],
     [SYMBOLS.SEMTREX_MATCH_SIBLINGS_COUNT, 'SEMTREX_MATCH_SIBLINGS_COUNT', STRUCTURES.INTEGER],
+    // Semantic map
+    [SYMBOLS.SEMANTIC_MAP,       'SEMANTIC_MAP',       STRUCTURES.TREE],
+    [SYMBOLS.SEMANTIC_LINK,      'SEMANTIC_LINK',      STRUCTURES.TREE],
+    [SYMBOLS.USAGE,              'USAGE',              STRUCTURES.SYMBOL],
+    [SYMBOLS.REPLACEMENT_VALUE,  'REPLACEMENT_VALUE',  STRUCTURES.TREE],
   ];
   for (const [symId, label, structId] of symDefs) {
     (sem as any).ensureContext(symId.context);

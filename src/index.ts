@@ -14,12 +14,14 @@ export {
 
 // --- Semantic tree ---
 export {
-  type SemNode, type Surface, type SemTableLike,
+  type SemNode, type Surface, type SemTableLike, type SemTableForParse, type SemNodeJSON,
   newNode, newInt, newStr, newSym, newRoot, newEmpty,
   childAt, getParent, root, nextSibling, nodeIndex, childCount,
   getPath, getByPath, pathEqual,
   clone, detach, replaceChild, addChild, findChild,
-  treeToString, treeToJSON,
+  detachByPtr, morph, replaceNode, insertAt,
+  treeHash, treeSerialize, treeDeserialize,
+  treeToString, treeToJSON, treeFromJSON, treeFromString,
   walk, nextInWalk,
 } from './tree.js';
 
@@ -31,7 +33,7 @@ export { SYMBOLS, STRUCTURES, registerBaseDefs, createBaseSemTable } from './bas
 export { StateType, type SState } from './semtrex-types.js';
 
 // --- Semtrex parser ---
-export { parseSemtrex, tokenize, SemtrexParseError, type Token, TokenType } from './semtrex-parser.js';
+export { parseSemtrex, tokenize, dumpSemtrex, SemtrexParseError, type Token, TokenType } from './semtrex-parser.js';
 
 // --- Semtrex FSA ---
 export { makeFA } from './semtrex-fsa.js';
@@ -44,4 +46,4 @@ export {
 } from './semtrex-match.js';
 
 // --- Semtrex replace ---
-export { embodyFromMatch, stxReplace } from './semtrex-replace.js';
+export { embodyFromMatch, stxReplace, matchResultsToSemMap } from './semtrex-replace.js';
